@@ -1,0 +1,4 @@
+key,medium,node,limitPerTimestep
+IA0,coal,N1,1000000000
+IA1,gas,N1,1000000000
+IA2,renewables,N1,1000000000

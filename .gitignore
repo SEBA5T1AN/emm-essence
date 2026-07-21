@@ -1,0 +1,71 @@
+# Byte-compiled / optimized / DLL files
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+
+.venv/
+.venv-min/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+
+build/
+dist/
+*.egg-info/
+
+# Test / coverage
+
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Ruff
+
+.ruff_cache/
+
+# MyPy
+
+.mypy_cache/
+
+# Jupyter
+
+.ipynb_checkpoints/
+
+# IDEs
+
+.vscode/
+.idea/
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# Environment variables
+
+.env
+
+# Logs
+
+*.log
+
+# Temporary files
+
+*.tmp
+*.bak
+
+# Solver output (optional)
+
+*.lp
+*.mps
+*.sol
+
+# Python version manager
+
+.python-version

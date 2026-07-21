@@ -1,0 +1,10 @@
+key,emissionFactor,price,sectorType
+electricity,0.0,0.00,0
+uranium,0.0,1.70,1
+lignite,0.410,6.50,1
+coal,0.342,10.00,1
+gas,0.202,28.50,1
+oil,0.270,42.99,1
+hydrogen,0.0,100,2
+biomethan,0.0,300.80,1
+renewables,0.0,0.00,1

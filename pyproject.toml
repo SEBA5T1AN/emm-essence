@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emmessence"
+version = "0.1.0"
+description = "..."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+
+authors = [
+    { name = "Sebastian Weigel", email = "sebastian.weigel@utn.de" },
+    { name = "Lukas Lang", email = "lukas.lang@utn.de" },
+    { name = "Johannes Spies", email = "johannes.spies@utn.de" }
+]
+
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyomo>=6.8",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=9,<10",
+]
+
+dev = [
+    "ruff",
+    "build",
+]
+
+[project.urls]
+Homepage = "https://github.com/SEBA5T1AN/EMMEssence"
+Repository = "https://github.com/SEBA5T1AN/EMMEssence"
+Issues = "https://github.com/SEBA5T1AN/EMMEssence/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

@@ -1,0 +1,7 @@
+key,inputMedium,outputMedium,efficiency,invCost,omCostFix,omCostVar
+CCGT_New,gas,electricity,0.61,0,15000,3.5
+Coal_New,coal,electricity,0.4475,0,30000,6
+CCGT_Invest,gas,electricity,0.61,100800,15000,3.5
+PV,renewables,electricity,1,0,0,0
+WindOn,renewables,electricity,1,0,0,0
+Electrolyser,electricity,hydrogen,0.7,132150,24000,0

@@ -1,0 +1,2 @@
+key,medium,sourceZone,targetZone,limitForward,limitBackward
+TL1,electricity,Z0,Z1,1000,800

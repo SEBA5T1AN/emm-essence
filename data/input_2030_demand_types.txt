@@ -1,0 +1,3 @@
+key,medium,consumerGroup,priceElasticity,referencePrice
+DT1,electricity,residents,0.001,90
+DT2,electricity,industry,0.001,90

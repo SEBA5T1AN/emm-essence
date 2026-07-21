@@ -1,0 +1,48 @@
+# EMM-Essence
+
+**EMM-Essence** (*Energy Market Model Essence*) is an open-source energy market model implemented in Python using Pyomo. It provides a compact, transparent, and extensible framework for electricity market modeling with optional sector coupling.
+
+Unlike many research models, EMM-Essence is designed to detect input and configuration errors before optimization starts. Comprehensive validation of input data and preprocessing helps identify inconsistencies early, making model development more reliable and significantly reducing debugging effort.
+
+## Features
+
+* Welfare-maximizing energy market optimization
+* Multi-region and multi-period modeling
+* Conventional and renewable generation
+* Storage technologies and demand-side flexibility
+* Capacity expansion planning
+* Imports, exports, and interregional trade
+* Carbon pricing
+* CSV-based input data
+* Comprehensive input validation
+* Extensive automated test suite
+
+## Technology
+
+EMM-Essence is built with **Python**, **Pyomo**, **NumPy**, and **pandas**. Gurobi is currently supported as the optimization solver, with support for open-source solvers planned.
+
+## Installation
+
+```bash
+git clone https://github.com/SEBA5T1AN/EMM-Essence.git
+cd EMM-Essence
+python -m pip install -e .
+```
+
+For development and testing:
+
+```bash
+python -m pip install -e ".[test,dev]"
+```
+
+## Example
+
+A minimal working example with sample input data is included to demonstrate the complete workflow from data validation and model construction to optimization and result export.
+
+## Contributing
+
+Contributions, bug reports, feature requests, and suggestions are welcome.
+
+## License
+
+EMM-Essence is released under the MIT License.

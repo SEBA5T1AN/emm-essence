@@ -1,8 +1,8 @@
-<p>
-  <img src="assets/logo.png" width="57" alt="EMM-Essence logo">
+<p align="center">
+  <img src="assets/logo.png" width="114" alt="EMM-Essence logo">
 </p>
 
-# EMM-Essence
+<h1 align="center">EMM-Essence</h1>
 
 **EMM-Essence** (*Energy Market Model Essence*) is an open-source energy market model implemented in Python using Pyomo. It provides a compact, transparent, and extensible framework for electricity market modeling with optional sector coupling.
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="57" alt="EMM-Essence logo">
+  <img src="assets/logo.png" width="104.5" alt="EMM-Essence logo">
 </p>
 
 <h1 align="center">EMM-Essence</h1>

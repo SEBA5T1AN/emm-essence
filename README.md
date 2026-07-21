@@ -24,8 +24,8 @@ EMM-Essence is built with **Python**, **Pyomo**, **NumPy**, and **pandas**. Guro
 ## Installation
 
 ```bash
-git clone https://github.com/SEBA5T1AN/EMM-Essence.git
-cd EMM-Essence
+git clone https://github.com/SEBA5T1AN/emm-essence.git
+cd emm-essence
 python -m pip install -e .
 ```
 

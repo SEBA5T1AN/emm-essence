@@ -18,10 +18,9 @@ from .user_specs import IMPORT_ACCESSES_DATA
 from .user_specs import EXPORT_ACCESSES_DATA
 from .user_specs import CONVERTER_AVA_PROFILES_DATA
 from .user_specs import DEMAND_PROFILES_DATA
-from .user_specs import STORAGE_LEVEL_PROFILES_DATA
-from .user_specs import STORAGE_MAX_PROFILES_DATA
-from .user_specs import STORAGE_MIN_PROFILES_DATA
-from .user_specs import STORAGE_NAT_IN_PROFILES_DATA
+from .user_specs import STORAGE_MAX_LEVEL_PROFILES_DATA
+from .user_specs import STORAGE_MIN_LEVEL_PROFILES_DATA
+from .user_specs import STORAGE_NAT_INFLOW_PROFILES_DATA
 from .user_specs import RESULTS_DIR
 from .profilespec import object_profile_matrix
 from .utils_key_matching import check_used_but_undefined_keys
@@ -102,20 +101,16 @@ exclusion_chain_reaction(
     keySubset = DEMAND_PROFILES_DATA.excludedKeys
 )
 exclusion_chain_reaction(
-    subject = STORAGE_LEVEL_PROFILES_DATA,
-    keySubset = STORAGE_LEVEL_PROFILES_DATA.excludedKeys
+    subject = STORAGE_MAX_LEVEL_PROFILES_DATA,
+    keySubset = STORAGE_MAX_LEVEL_PROFILES_DATA.excludedKeys
 )
 exclusion_chain_reaction(
-    subject = STORAGE_MAX_PROFILES_DATA,
-    keySubset = STORAGE_MAX_PROFILES_DATA.excludedKeys
+    subject = STORAGE_MIN_LEVEL_PROFILES_DATA,
+    keySubset = STORAGE_MIN_LEVEL_PROFILES_DATA.excludedKeys
 )
 exclusion_chain_reaction(
-    subject = STORAGE_MIN_PROFILES_DATA,
-    keySubset = STORAGE_MIN_PROFILES_DATA.excludedKeys
-)
-exclusion_chain_reaction(
-    subject = STORAGE_NAT_IN_PROFILES_DATA,
-    keySubset = STORAGE_NAT_IN_PROFILES_DATA.excludedKeys
+    subject = STORAGE_NAT_INFLOW_PROFILES_DATA,
+    keySubset = STORAGE_NAT_INFLOW_PROFILES_DATA.excludedKeys
 )
 
 inform_about_excluded_keys(subject = MEDIA_DATA)
@@ -132,10 +127,9 @@ inform_about_excluded_keys(subject = EXPORT_ACCESSES_DATA)
 inform_about_excluded_keys(subject = TRADE_LIMITS_DATA)
 inform_about_excluded_keys(subject = CONVERTER_AVA_PROFILES_DATA)
 inform_about_excluded_keys(subject = DEMAND_PROFILES_DATA)
-inform_about_excluded_keys(subject = STORAGE_LEVEL_PROFILES_DATA)
-inform_about_excluded_keys(subject = STORAGE_MAX_PROFILES_DATA)
-inform_about_excluded_keys(subject = STORAGE_MIN_PROFILES_DATA)
-inform_about_excluded_keys(subject = STORAGE_NAT_IN_PROFILES_DATA)
+inform_about_excluded_keys(subject = STORAGE_MAX_LEVEL_PROFILES_DATA)
+inform_about_excluded_keys(subject = STORAGE_MIN_LEVEL_PROFILES_DATA)
+inform_about_excluded_keys(subject = STORAGE_NAT_INFLOW_PROFILES_DATA)
 
 check_used_but_undefined_keys(subject = CONVERTER_TYPES_DATA)
 check_used_but_undefined_keys(subject = STORAGE_TYPES_DATA)
@@ -173,21 +167,17 @@ D_P = object_profile_matrix(
     objectTable = D,
     profileSpec = DEMAND_PROFILES_DATA
 )
-STO_P_LEVEL = object_profile_matrix(
+STO_P_MAX_LEVEL = object_profile_matrix(
     objectTable = STO,
-    profileSpec = STORAGE_LEVEL_PROFILES_DATA
+    profileSpec = STORAGE_MAX_LEVEL_PROFILES_DATA
 )
-STO_P_MAX = object_profile_matrix(
+STO_P_MIN_LEVEL = object_profile_matrix(
     objectTable = STO,
-    profileSpec = STORAGE_MAX_PROFILES_DATA
+    profileSpec = STORAGE_MIN_LEVEL_PROFILES_DATA
 )
-STO_P_MIN = object_profile_matrix(
+STO_P_NAT_INFLOW = object_profile_matrix(
     objectTable = STO,
-    profileSpec = STORAGE_MIN_PROFILES_DATA
-)
-STO_P_NAT = object_profile_matrix(
-    objectTable = STO,
-    profileSpec = STORAGE_NAT_IN_PROFILES_DATA
+    profileSpec = STORAGE_NAT_INFLOW_PROFILES_DATA
 )
 
 
@@ -233,6 +223,27 @@ c_emFactor = C['converterType'].map(C_T['inputMedium']).map(M['emissionFactor'])
 c_eff = C['converterType'].map(C_T['efficiency']).to_numpy()
 c_fixCosts_om_inv = c_fixCosts_om + c_fixCosts_inv
 c_varCosts_om_co2 = c_varCosts_om + (c_emFactor*CO2_PRICE) / c_eff
+
+
+# storages
+sto_cap = STO['energyCapacity'].to_numpy()
+sto_natInflow = STO['naturalInflow'].to_numpy()
+sto_maxCharge = STO['chargePower'].to_numpy()
+sto_maxDischarge = STO['dischargePower'].to_numpy()
+sto_eff = STO['storageType'].map(STO_T['efficiency']).to_numpy()
+sto_fixCosts_om = STO['storageType'].map(STO_T['omCostFix']).to_numpy()
+sto_fixCosts_inv = STO['storageType'].map(STO_T['invCost']).to_numpy()
+sto_varCosts_om = STO['storageType'].map(STO_T['omCostVar']).to_numpy() ###
+sto_fixCosts_om_inv = sto_fixCosts_om + sto_fixCosts_inv
+
+sto_sectorType = STO['storageType'].map(STO_T['medium']).map(M['sectorType']).to_numpy()
+sto_set = np.where(sto_sectorType != 1)[0]
+sto_sec = STO['storageType'].map(STO_T['medium']).to_numpy()[sto_set]
+sto_zone = STO['node'].map(N['zone']).to_numpy()[sto_set]
+allStorages = create_sector_zone_dict(
+    sectorArray = sto_sec, allowedSectors = SECTORS,
+    zoneArray = sto_zone, allowedZones = ZONES
+)
 
 
 # demands
@@ -301,12 +312,13 @@ allExportAccesses = create_sector_zone_dict(
 model = pyo.ConcreteModel()
 model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
-model.SEC_N = pyo.Set(initialize = m_endo_set)
-model.SEC_XO = pyo.Set(initialize = m_exo_oneway_set)
-model.SEC_XT = pyo.Set(initialize = m_exo_twoway_set)
+model.SEC_TYPE_0 = pyo.Set(initialize = m_endo_set)
+model.SEC_TYPE_1 = pyo.Set(initialize = m_exo_oneway_set)
+model.SEC_TYPE_2 = pyo.Set(initialize = m_exo_twoway_set)
 model.Z = pyo.RangeSet(0, z_count-1)
 model.D = pyo.Set(initialize = d_set)
 model.C = pyo.Set(initialize = c_set)
+model.STO = pyo.Set(initialize = sto_set)
 model.TR = pyo.Set(initialize = tr_set)
 model.TR_DIR = pyo.Set(initialize = [0, 1])
 model.IA = pyo.Set(initialize = ia_set)
@@ -315,6 +327,11 @@ model.T = pyo.RangeSet(0, T_COUNT-1)
 
 model.c_cap = pyo.Var(model.C, bounds=lambda m,c: (0, c_cap0[c]))
 model.c_out = pyo.Var(model.C, model.T, domain=pyo.NonNegativeReals)
+model.sto_cap = pyo.Var(model.STO, bounds=lambda m,sto: (0, sto_cap[sto]))
+model.sto_level = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
+model.sto_charge = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, sto_maxCharge[sto]))
+model.sto_discharge = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, sto_maxDischarge[sto]))
+model.sto_spill = pyo.Var( model.STO, model.T, bounds=lambda m,sto,t: (0, STO_P_NAT_INFLOW[sto, t]))
 model.ia_volume = pyo.Var(model.IA, model.T, bounds=lambda m,ia,t: (0, ia_limit[ia]))
 model.ea_volume = pyo.Var(model.EA, model.T, bounds=lambda m,ea,t: (0, ea_limit[ea]))
 model.demand = pyo.Var(model.D, model.T, domain=pyo.NonNegativeReals)
@@ -330,14 +347,18 @@ def objective_rule(model):
         for d in model.D
         for t in model.T
     )
-    all_fix_costs_for_om_and_invest = pyo.quicksum(
+    all_converter_fix_costs = pyo.quicksum(
         model.c_cap[c] * c_fixCosts_om_inv[c]
         for c in model.C
     )
-    all_var_costs_for_om_and_co2 = pyo.quicksum(
+    all_converter_var_costs = pyo.quicksum(
         model.c_out[c, t] * c_varCosts_om_co2[c]
         for c in model.C
         for t in model.T
+    )
+    all_storage_fix_costs = pyo.quicksum(
+        model.sto_cap[sto] * sto_fixCosts_om_inv[sto]
+        for sto in model.STO
     )
     all_import_costs = pyo.quicksum(
         model.ia_volume[ia, t] * ia_mediumPrice[ia]
@@ -361,8 +382,9 @@ def objective_rule(model):
     )
     result = (
         welfare
-        - all_fix_costs_for_om_and_invest
-        - all_var_costs_for_om_and_co2
+        - all_converter_fix_costs
+        - all_converter_var_costs
+        - all_storage_fix_costs
         - all_import_costs
         + all_export_revenues
         - all_export_penalties
@@ -376,6 +398,7 @@ model.obj = pyo.Objective(rule=objective_rule, sense=pyo.maximize)
 def energy_balance_endo(model, secEndo, z, t):
     incomingConverters = allIncomingConverters[secEndo][z]
     outgoingConverters = allOutgoingConverters[secEndo][z]
+    storages = allStorages[secEndo][z]
     imports = allImportAccesses[secEndo][z]
     exports = allExportAccesses[secEndo][z]
     incomingTrades = allIncomingTrades[secEndo][z]
@@ -397,6 +420,10 @@ def energy_balance_endo(model, secEndo, z, t):
         pyo.quicksum(
             model.c_out[c, t]
             for c in incomingConverters
+        )
+        + pyo.quicksum(
+            model.sto_discharge[sto, t]
+            for sto in storages
         )
         + pyo.quicksum(
             model.ia_volume[ia, t]
@@ -421,6 +448,10 @@ def energy_balance_endo(model, secEndo, z, t):
             for c in outgoingConverters
         )
         + pyo.quicksum(
+            model.sto_charge[sto, t]
+            for sto in storages
+        )
+        + pyo.quicksum(
             model.ea_volume[ea, t]
             for ea in exports
         )
@@ -439,6 +470,7 @@ def energy_balance_endo(model, secEndo, z, t):
 def energy_balance_exo_twoway(model, secExoTwoway, t):
     incomingConverters = list(chain.from_iterable(allIncomingConverters[secExoTwoway].values()))
     outgoingConverters = list(chain.from_iterable(allOutgoingConverters[secExoTwoway].values()))
+    storages = list(chain.from_iterable(allStorages[secExoTwoway].values()))
     imports = list(chain.from_iterable(allImportAccesses[secExoTwoway].values()))
     exports = list(chain.from_iterable(allExportAccesses[secExoTwoway].values()))
 
@@ -451,6 +483,10 @@ def energy_balance_exo_twoway(model, secExoTwoway, t):
             for c in incomingConverters
         )
         + pyo.quicksum(
+            model.sto_discharge[sto, t]
+            for sto in storages
+        )
+        + pyo.quicksum(
             model.ia_volume[ia, t]
             for ia in imports
         )
@@ -459,6 +495,10 @@ def energy_balance_exo_twoway(model, secExoTwoway, t):
         pyo.quicksum(
             model.c_out[c, t] / c_eff[c]
             for c in outgoingConverters
+        )
+        + pyo.quicksum(
+            model.sto_charge[sto, t]
+            for sto in storages
         )
         + pyo.quicksum(
             model.ea_volume[ea, t]
@@ -493,11 +533,40 @@ def energy_balance_exo_oneway(model, secExoOneway, t):
 def available_conversion(model, c, t):
     return model.c_out[c, t] <= model.c_cap[c] * C_P_AVA[c, t]
 
+def storage_min_capacity(model, sto, t):
+    return (
+        model.sto_level[sto, t]
+        >= STO_P_MIN_LEVEL[sto, t] * model.sto_cap[sto]
+    )
 
-model.con0 = pyo.Constraint(model.SEC_N, model.Z, model.T, rule=energy_balance_endo)
-model.con1 = pyo.Constraint(model.SEC_XT, model.T, rule=energy_balance_exo_twoway)
-model.con2 = pyo.Constraint(model.SEC_XO, model.T, rule=energy_balance_exo_oneway)
+def storage_max_capacity(model, sto, t):
+    return (
+        model.sto_level[sto, t]
+        <= STO_P_MAX_LEVEL[sto, t] * model.sto_cap[sto]
+    )
+
+def storage_balance(model, sto, t):
+    if t == model.T.first():
+        prev = model.T.last()
+    else:
+        prev = model.T.prev(t)
+    return (
+        model.sto_level[sto, t]
+        == model.sto_level[sto, prev]
+        + model.sto_charge[sto, t] * sto_eff[sto]
+        - model.sto_discharge[sto, t]
+        + STO_P_NAT_INFLOW[sto, t]
+        - model.sto_spill[sto, t]
+    )
+
+
+model.con0 = pyo.Constraint(model.SEC_TYPE_0, model.Z, model.T, rule=energy_balance_endo)
+model.con1 = pyo.Constraint(model.SEC_TYPE_2, model.T, rule=energy_balance_exo_twoway)
+model.con2 = pyo.Constraint(model.SEC_TYPE_1, model.T, rule=energy_balance_exo_oneway)
 model.con3 = pyo.Constraint(model.C, model.T, rule=available_conversion)
+model.con4 = pyo.Constraint(model.STO, model.T, rule=storage_min_capacity)
+model.con5 = pyo.Constraint(model.STO, model.T, rule=storage_max_capacity)
+model.con6 = pyo.Constraint(model.STO, model.T, rule=storage_balance)
 
 
 solver = pyo.SolverFactory("gurobi")
@@ -506,6 +575,11 @@ solver.solve(model)
 
 pyo_var_to_csv(var = model.c_out, path = RESULTS_DIR)
 pyo_var_to_csv(var = model.c_cap, path = RESULTS_DIR)
+pyo_var_to_csv(var = model.sto_cap, path = RESULTS_DIR)
+pyo_var_to_csv(var = model.sto_level, path = RESULTS_DIR)
+pyo_var_to_csv(var = model.sto_charge, path = RESULTS_DIR)
+pyo_var_to_csv(var = model.sto_discharge, path = RESULTS_DIR)
+pyo_var_to_csv(var = model.sto_spill, path = RESULTS_DIR)
 pyo_var_to_csv(var = model.ia_volume, path = RESULTS_DIR)
 pyo_var_to_csv(var = model.ea_volume, path = RESULTS_DIR)
 pyo_var_to_csv(var = model.demand, path = RESULTS_DIR)

@@ -71,34 +71,25 @@ DEMAND_PROFILES_DATA: Final = profile_factory(
     upperThreshold = 1.0,
 )
 
-STORAGE_LEVEL_PROFILES_DATA: Final = profile_factory(
-    referenceNames = ["storageLevelProfile"],
-    path = f"{DATA_DIR}/profiles/input_2030_storage_level_profiles.txt",
-    typeRow = "storageType",
-    defaultValue = 1.0/T_COUNT,
-    lowerThreshold = 0.0,
-    upperThreshold = 1.0,
-)
-
-STORAGE_MAX_PROFILES_DATA: Final = profile_factory(
+STORAGE_MAX_LEVEL_PROFILES_DATA: Final = profile_factory(
     referenceNames = ["storageMaxProfile"],
-    path = f"{DATA_DIR}/profiles/input_2030_storage_max_profiles.txt",
+    path = f"{DATA_DIR}/profiles/input_2030_storage_max_level_profiles.txt",
     typeRow = "storageType",
     defaultValue = 1.0,
     lowerThreshold = 0.0,
     upperThreshold = 1.0,
 )
 
-STORAGE_MIN_PROFILES_DATA: Final = profile_factory(
+STORAGE_MIN_LEVEL_PROFILES_DATA: Final = profile_factory(
     referenceNames = ["storageMinProfile"],
-    path = f"{DATA_DIR}/profiles/input_2030_storage_min_profiles.txt",
+    path = f"{DATA_DIR}/profiles/input_2030_storage_min_level_profiles.txt",
     typeRow = "storageType",
     defaultValue = 0.0,
     lowerThreshold = 0.0,
     upperThreshold = 1.0,
 )
 
-STORAGE_NAT_IN_PROFILES_DATA: Final = profile_factory(
+STORAGE_NAT_INFLOW_PROFILES_DATA: Final = profile_factory(
     referenceNames = ["storageNaturalInflowProfile"],
     path = f"{DATA_DIR}/profiles/input_2030_storage_natural_inflow_profiles.txt",
     typeRow = "storageType",
@@ -158,7 +149,7 @@ STORAGES_DATA: Final = TableSpec(
         ("node", str),
         ("storageType", str),
         ("energyCapacity", float, 0.0, 1e9),
-        ("naturalInfow", float, 0.0, 1e9),
+        ("naturalInflow", float, 0.0, 1e9),
         ("chargePower", float, 0.0, 1e9),
         ("dischargePower", float, 0.0, 1e9),
     ),
@@ -177,8 +168,6 @@ STORAGE_TYPES_DATA: Final = TableSpec(
         ("key", str),
         ("medium", str),
         ("efficiency", float, 0.0, 1.0),
-        ("minLevel", float, 0.0, 1.0),
-        ("maxLevel", float, 0.0, 1.0),
         ("invCost", float, 0.0, 1e9),
         ("omCostFix", float, 0.0, 1e9),
         ("omCostVar", float, 0.0, 1e9),
@@ -186,10 +175,9 @@ STORAGE_TYPES_DATA: Final = TableSpec(
     separator = ",",
     parents = [
         STORAGES_DATA,
-        STORAGE_LEVEL_PROFILES_DATA,
-        STORAGE_MAX_PROFILES_DATA,
-        STORAGE_MIN_PROFILES_DATA,
-        STORAGE_NAT_IN_PROFILES_DATA,
+        STORAGE_MAX_LEVEL_PROFILES_DATA,
+        STORAGE_MIN_LEVEL_PROFILES_DATA,
+        STORAGE_NAT_INFLOW_PROFILES_DATA,
     ],
     excludedKeys = [],
     idColumn = "key",
@@ -305,10 +293,9 @@ NODES_DATA: Final = TableSpec(
         STORAGES_DATA,
         DEMANDS_DATA,
         CONVERTER_AVA_PROFILES_DATA,
-        STORAGE_LEVEL_PROFILES_DATA,
-        STORAGE_MAX_PROFILES_DATA,
-        STORAGE_MIN_PROFILES_DATA,
-        STORAGE_NAT_IN_PROFILES_DATA,
+        STORAGE_MAX_LEVEL_PROFILES_DATA,
+        STORAGE_MIN_LEVEL_PROFILES_DATA,
+        STORAGE_NAT_INFLOW_PROFILES_DATA,
         DEMAND_PROFILES_DATA,
         IMPORT_ACCESSES_DATA,
         EXPORT_ACCESSES_DATA,

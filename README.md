@@ -27,16 +27,38 @@ EMM-Essence is built with **Python**, **Pyomo**, **NumPy**, and **pandas**. Guro
 
 ## Installation
 
+### 1. Install uv
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+On Windows, run in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Restart PowerShell after the installation.
+
+### 2. Install EMMEssence
+
 ```bash
 git clone https://github.com/SEBA5T1AN/emm-essence.git
 cd emm-essence
-python -m pip install -e .
+uv sync --locked --no-dev
 ```
 
-For development and testing:
+### 3. Run EMMEssence
 
 ```bash
-python -m pip install -e ".[test,dev]"
+uv run emmessence
+```
+
+A valid Gurobi license is required to solve optimization models.
+
+### Testing
+
+```bash
+uv run pytest
 ```
 
 ## Example

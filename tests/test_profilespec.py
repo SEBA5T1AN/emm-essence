@@ -1,14 +1,15 @@
-from emmessence.profilespec import ProfileSpec
-from emmessence.profilespec import _pair_combinations
-from emmessence.profilespec import _map_profiles
-from emmessence.profilespec import object_profile_matrix
-
-import pytest
-
-import pandas as pd
-import pandas.testing as pdt
 import numpy as np
 import numpy.testing as npt
+import pandas as pd
+import pandas.testing as pdt
+import pytest
+
+from emmessence.profilespec import (
+    ProfileSpec,
+    _map_profiles,
+    _pair_combinations,
+    object_profile_matrix,
+)
 
 
 

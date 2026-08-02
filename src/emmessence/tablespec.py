@@ -1,12 +1,12 @@
-from .spec import Spec
-from . import utils_input as utl_input
-from .utils_logging import shorten_path
-
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import override
 
 import pandas as pd
+
+from . import utils_input as utl_input
+from .spec import Spec
+from .utils_logging import shorten_path
 
 
 

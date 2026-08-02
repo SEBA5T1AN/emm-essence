@@ -1,8 +1,7 @@
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
-import warnings
 
 import pandas as pd
 
@@ -54,7 +53,7 @@ class Spec(ABC):
     separator: str = ","
     parents: list["Spec"] = field(default_factory=list)
     excludedKeys: list[str] = field(default_factory=list)
-    table: Optional[pd.DataFrame] = None
+    table: pd.DataFrame | None = None
 
     def __post_init__(self):
         self._validate_referenceNames()

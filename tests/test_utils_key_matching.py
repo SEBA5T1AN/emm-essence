@@ -1,12 +1,13 @@
-from emmessence.tablespec import TableSpec
-from emmessence.utils_key_matching import get_keys_in_use
-from emmessence.utils_key_matching import get_keys_in_definition
-from emmessence.utils_key_matching import any_root_usage
-from emmessence.utils_key_matching import exclusion_chain_reaction
-
+import pandas as pd
 import pytest
 
-import pandas as pd
+from emmessence.tablespec import TableSpec
+from emmessence.utils_key_matching import (
+    any_root_usage,
+    exclusion_chain_reaction,
+    get_keys_in_definition,
+    get_keys_in_use,
+)
 
 
 

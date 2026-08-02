@@ -1,12 +1,11 @@
-from emmessence.spec import Spec
-from emmessence.spec import _is_nonnumeric_field, _is_numeric_field
-
 from dataclasses import dataclass
-import pytest
 from typing import override
 
 import pandas as pd
 import pandas.testing as pdt
+import pytest
+
+from emmessence.spec import Spec, _is_nonnumeric_field, _is_numeric_field
 
 
 

@@ -1,8 +1,13 @@
-from emmessence.utils_input import ensure_unique_values
-from emmessence.utils_input import valid_str, valid_bool, valid_int, valid_float
-from emmessence.utils_input import parse_table
-
 import pytest
+
+from emmessence.utils_input import (
+    ensure_unique_values,
+    parse_table,
+    valid_bool,
+    valid_float,
+    valid_int,
+    valid_str,
+)
 
 
 
@@ -67,7 +72,7 @@ def test_valid_str_ok(validString):
     [
         "",
         " ",
-        "a b"
+        "a b",
         " ab",
         "ab ",
         "äöü",

@@ -1,21 +1,14 @@
-from .tablespec import TableSpec
-from .profilespec import ProfileSpec
-
 from pathlib import Path
 from typing import Final
 
-
-
+from .profilespec import ProfileSpec
+from .tablespec import TableSpec
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
 T_COUNT = 8760
 CO2_PRICE = 113.4
-
-
-
-
 
 
 

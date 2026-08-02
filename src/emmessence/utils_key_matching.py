@@ -1,13 +1,12 @@
-from .spec import Spec
-from .utils_logging import shorten_path
-
 import logging
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable
-from typing import Hashable
+from collections.abc import Hashable, Iterable
 
 import pandas as pd
+
+from .spec import Spec
+from .utils_logging import shorten_path
 
 
 

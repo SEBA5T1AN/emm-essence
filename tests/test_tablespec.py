@@ -1,9 +1,8 @@
-from emmessence.tablespec import TableSpec
-
-import pytest
-
 import pandas as pd
 import pandas.testing as pdt
+import pytest
+
+from emmessence.tablespec import TableSpec
 
 
 

@@ -1,14 +1,14 @@
-from .spec import Spec
-from . import utils_input as utl_input
-from .utils_logging import shorten_path
-
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import override
-from collections import defaultdict
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
+from . import utils_input as utl_input
+from .spec import Spec
+from .utils_logging import shorten_path
 
 
 

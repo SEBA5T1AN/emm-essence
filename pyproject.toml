@@ -21,18 +21,22 @@ dependencies = [
     "numpy>=1.26",
     "pandas>=2.2",
     "pyomo>=6.8",
-    "gurobipy>=12.0",
+    "gurobipy>=12.0,<13",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 test = [
     "pytest>=9,<10",
 ]
 
 dev = [
+    { include-group = "test" },
     "ruff",
     "build",
 ]
+
+[project.scripts]
+emmessence = "emmessence.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/SEBA5T1AN/EMMEssence"

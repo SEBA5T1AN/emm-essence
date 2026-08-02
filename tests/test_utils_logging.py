@@ -1,11 +1,9 @@
-from emmessence.utils_logging import shorten_path
-from emmessence.utils_logging import pyo_var_to_csv
-
-import pytest
-
 import pandas as pd
 import pandas.testing as pdt
 import pyomo.environ as pyo
+import pytest
+
+from emmessence.utils_logging import pyo_var_to_csv, shorten_path
 
 
 

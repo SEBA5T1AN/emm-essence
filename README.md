@@ -55,7 +55,7 @@ uv run emmessence
 
 A valid Gurobi license is required to solve optimization models.
 
-### Testing
+## Testing
 
 ```bash
 uv run pytest

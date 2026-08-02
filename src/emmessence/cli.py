@@ -9,3 +9,6 @@ def main() -> None:
         logger.exception("Import Error.")
         raise SystemExit(1)
     run()
+
+if __name__ == "__main__":
+    main()

@@ -39,7 +39,9 @@ htmlcov/
 
 # IDEs
 
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
 .idea/
 
 # OS files

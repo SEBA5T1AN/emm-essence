@@ -101,6 +101,7 @@ CONVERTERS_DATA: Final = TableSpec(
         ("key", str),
         ("node", str),
         ("converterType", str),
+        ("isInvestment", bool),
         ("capacity", float, 0.0, 1e9),
     ),
     separator = ",",

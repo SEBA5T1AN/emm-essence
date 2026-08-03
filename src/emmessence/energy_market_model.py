@@ -204,6 +204,7 @@ def run() -> None:
 
 
     # converters
+    c_isInvestment = C['isInvestment'].to_numpy()
     c_cap0 = C['capacity'].to_numpy()
     c_outputBased = C['converterType'].map(C_T['hasOutputBasedValues']).to_numpy()
     c_sector1Type = C['converterType'].map(C_T['outputMedium']).map(M['sectorType']).to_numpy()
@@ -220,7 +221,7 @@ def run() -> None:
         zoneArray = c_zone, allowedZones = ZONES
     )
     # converters costs
-    c_fixCosts_inv = C['converterType'].map(C_T['invCost']).to_numpy()
+    c_fixCosts_inv = C['converterType'].map(C_T['invCost']).to_numpy() * c_isInvestment
     c_fixCosts_om = C['converterType'].map(C_T['omCostFix']).to_numpy()
     c_varCosts_om = C['converterType'].map(C_T['omCostVar']).to_numpy()
     c_emFactor = C['converterType'].map(C_T['inputMedium']).map(M['emissionFactor']).to_numpy()

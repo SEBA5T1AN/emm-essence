@@ -275,16 +275,18 @@ def run() -> None:
 
 
     # demands
+    d_isElastic = D['demandType'].map(D_T['isElastic']).to_numpy()
     d_priceElast = D['demandType'].map(D_T['priceElasticity']).to_numpy()
     d_refPrice = D['demandType'].map(D_T['referencePrice']).to_numpy()
     d_totalLoad = D['totalLoad'].to_numpy()
     d_load0 = d_totalLoad[:, None] * D_P
-    d_curveM = d_refPrice[:, None] / (d_priceElast[:, None]*d_load0)
-    d_curveA = d_refPrice[:, None] + d_curveM*d_load0
     d_sectorType = D['demandType'].map(D_T['medium']).map(M['sectorType']).to_numpy()
-    d_set = np.where(d_sectorType == 0)[0]
-    d_sec = D['demandType'].map(D_T['medium']).to_numpy()[d_set]
-    d_zone = D['node'].map(N['zone']).to_numpy()[d_set]
+    d_var_set = np.where((d_sectorType == 0) & (d_isElastic))[0]
+    d_fix_set = np.where((d_sectorType == 0) & (~d_isElastic))[0]
+    d_curveM = d_refPrice[d_var_set, None] / (d_priceElast[d_var_set, None]*d_load0[d_var_set])
+    d_curveA = d_refPrice[d_var_set, None] + d_curveM*d_load0[d_var_set]
+    d_sec = D['demandType'].map(D_T['medium']).to_numpy()
+    d_zone = D['node'].map(N['zone']).to_numpy()
     allDemands = create_sector_zone_dict(
         sectorArray = d_sec, allowedSectors = SECTORS,
         zoneArray = d_zone, allowedZones = ZONES
@@ -344,7 +346,8 @@ def run() -> None:
     model.SEC_TYPE_1 = pyo.Set(initialize = m_exo_oneway_set)
     model.SEC_TYPE_2 = pyo.Set(initialize = m_exo_twoway_set)
     model.Z = pyo.RangeSet(0, z_count-1)
-    model.D = pyo.Set(initialize = d_set)
+    model.D_VAR = pyo.Set(initialize = d_var_set)
+    model.D_FIX = pyo.Set(initialize = d_fix_set)
     model.C = pyo.Set(initialize = c_set)
     model.STO = pyo.Set(initialize = sto_set)
     model.TR = pyo.Set(initialize = tr_set)
@@ -362,7 +365,7 @@ def run() -> None:
     model.sto_spill = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, STO_P_NAT_INFLOW[sto, t])) # or domain=pyo.NonNegativeReals)
     model.ia_volume = pyo.Var(model.IA, model.T, bounds=lambda m,ia,t: (0, ia_limit[ia]))
     model.ea_volume = pyo.Var(model.EA, model.T, bounds=lambda m,ea,t: (0, ea_limit[ea]))
-    model.demand = pyo.Var(model.D, model.T, domain=pyo.NonNegativeReals)
+    model.demand = pyo.Var(model.D_VAR, model.T, domain=pyo.NonNegativeReals)
     model.trade = pyo.Var(model.TR, model.T, model.TR_DIR, bounds=lambda m,tr,t,tr_d: (0, tr_limits[tr][tr_d]))
 
 
@@ -372,7 +375,7 @@ def run() -> None:
                 d_curveA[d, t]
                 - 0.5 * d_curveM[d, t] * model.demand[d, t]
             )
-            for d in model.D
+            for d in model.D_VAR
             for t in model.T
         )
         all_converter_fix_costs = pyo.quicksum(
@@ -431,7 +434,8 @@ def run() -> None:
         exports = allExportAccesses[secEndo][z]
         incomingTrades = allIncomingTrades[secEndo][z]
         outgoingTrades = allOutgoingTrades[secEndo][z]
-        demands = allDemands[secEndo][z]
+        varDemands = np.intersect1d(allDemands[secEndo][z], d_var_set)
+        fixDemands = np.intersect1d(allDemands[secEndo][z], d_fix_set)
 
         if not any([
             incomingConverters,
@@ -441,7 +445,8 @@ def run() -> None:
             exports,
             incomingTrades,
             outgoingTrades,
-            demands,
+            varDemands,
+            fixDemands,
         ]):
             return pyo.Constraint.Skip
         
@@ -470,7 +475,11 @@ def run() -> None:
         rhs = (
             pyo.quicksum(
                 model.demand[d, t]
-                for d in demands
+                for d in varDemands
+            )
+            + pyo.quicksum(
+                d_load0[d, t]
+                for d in fixDemands
             )
             + pyo.quicksum(
                 model.c_out[c, t] / c_eff[c]
@@ -596,7 +605,7 @@ def run() -> None:
             == model.sto_level[sto, prev]
             + model.sto_charge[sto, t] * sto_eff[sto]
             - model.sto_discharge[sto, t]
-            + STO_P_NAT_INFLOW[sto, t]
+            + sto_natInflow[sto] * STO_P_NAT_INFLOW[sto, t]
             - model.sto_spill[sto, t]
         )
 

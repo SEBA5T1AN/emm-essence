@@ -207,6 +207,7 @@ DEMAND_TYPES_DATA: Final = TableSpec(
         ("key", str),
         ("medium", str),
         ("consumerGroup", str),
+        ("isElastic", bool),
         ("priceElasticity", float, 0.0, 1e9),
         ("referencePrice", float, 0.0, 1e9),
     ),

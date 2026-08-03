@@ -205,6 +205,7 @@ def run() -> None:
 
     # converters
     c_cap0 = C['capacity'].to_numpy()
+    c_outputBased = C['converterType'].map(C_T['hasOutputBasedValues']).to_numpy()
     c_sector1Type = C['converterType'].map(C_T['outputMedium']).map(M['sectorType']).to_numpy()
     c_set = np.where(c_sector1Type != 1)[0]
     c_sec0 = C['converterType'].map(C_T['inputMedium']).to_numpy()[c_set]
@@ -219,23 +220,46 @@ def run() -> None:
         zoneArray = c_zone, allowedZones = ZONES
     )
     # converters costs
-    c_fixCosts_om = C['converterType'].map(C_T['omCostFix']).to_numpy()
     c_fixCosts_inv = C['converterType'].map(C_T['invCost']).to_numpy()
+    c_fixCosts_om = C['converterType'].map(C_T['omCostFix']).to_numpy()
     c_varCosts_om = C['converterType'].map(C_T['omCostVar']).to_numpy()
     c_emFactor = C['converterType'].map(C_T['inputMedium']).map(M['emissionFactor']).to_numpy()
     c_eff = C['converterType'].map(C_T['efficiency']).to_numpy()
+    c_cap0 = np.where(
+        c_outputBased,
+        c_cap0,
+        c_cap0 * c_eff
+    )
+    c_fixCosts_inv = np.where(
+        c_outputBased,
+        c_fixCosts_inv,
+        c_fixCosts_inv/c_eff
+    )
+    c_fixCosts_om = np.where(
+        c_outputBased,
+        c_fixCosts_om,
+        c_fixCosts_om/c_eff
+    )
+    c_varCosts_om = np.where(
+        c_outputBased,
+        c_varCosts_om,
+        c_varCosts_om/c_eff
+    )
     c_fixCosts_om_inv = c_fixCosts_om + c_fixCosts_inv
     c_varCosts_om_co2 = c_varCosts_om + (c_emFactor*CO2_PRICE) / c_eff
 
 
     # storages
+    sto_isInvestment = STO['isInvestment'].to_numpy()
     sto_cap = STO['energyCapacity'].to_numpy()
-    sto_natInflow = STO['naturalInflow'].to_numpy()
     sto_maxCharge = STO['chargePower'].to_numpy()
     sto_maxDischarge = STO['dischargePower'].to_numpy()
+    sto_cap2charge = sto_cap / sto_maxCharge
+    sto_cap2discharge = sto_cap / sto_maxDischarge
+    sto_natInflow = STO['naturalInflow'].to_numpy()
     sto_eff = STO['storageType'].map(STO_T['efficiency']).to_numpy()
     sto_fixCosts_om = STO['storageType'].map(STO_T['omCostFix']).to_numpy()
-    sto_fixCosts_inv = STO['storageType'].map(STO_T['invCost']).to_numpy()
+    sto_fixCosts_inv = STO['storageType'].map(STO_T['invCost']).to_numpy() * sto_isInvestment
     sto_varCosts_om = STO['storageType'].map(STO_T['omCostVar']).to_numpy() ###
     sto_fixCosts_om_inv = sto_fixCosts_om + sto_fixCosts_inv
 
@@ -332,9 +356,9 @@ def run() -> None:
     model.c_out = pyo.Var(model.C, model.T, domain=pyo.NonNegativeReals)
     model.sto_cap = pyo.Var(model.STO, bounds=lambda m,sto: (0, sto_cap[sto]))
     model.sto_level = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
-    model.sto_charge = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, sto_maxCharge[sto]))
-    model.sto_discharge = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, sto_maxDischarge[sto]))
-    model.sto_spill = pyo.Var( model.STO, model.T, bounds=lambda m,sto,t: (0, STO_P_NAT_INFLOW[sto, t]))
+    model.sto_charge = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
+    model.sto_discharge = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
+    model.sto_spill = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, STO_P_NAT_INFLOW[sto, t])) # or domain=pyo.NonNegativeReals)
     model.ia_volume = pyo.Var(model.IA, model.T, bounds=lambda m,ia,t: (0, ia_limit[ia]))
     model.ea_volume = pyo.Var(model.EA, model.T, bounds=lambda m,ea,t: (0, ea_limit[ea]))
     model.demand = pyo.Var(model.D, model.T, domain=pyo.NonNegativeReals)
@@ -411,6 +435,7 @@ def run() -> None:
         if not any([
             incomingConverters,
             outgoingConverters,
+            storages,
             imports,
             exports,
             incomingTrades,
@@ -477,7 +502,13 @@ def run() -> None:
         imports = list(chain.from_iterable(allImportAccesses[secExoTwoway].values()))
         exports = list(chain.from_iterable(allExportAccesses[secExoTwoway].values()))
 
-        if not incomingConverters and not outgoingConverters and not imports and not exports:
+        if not any([
+            incomingConverters,
+            outgoingConverters,
+            storages,
+            imports,
+            exports,
+        ]):
             return pyo.Constraint.Skip
         
         lhs = (
@@ -533,8 +564,14 @@ def run() -> None:
         return (lhs == rhs)
 
 
-    def available_conversion(model, c, t):
+    def converter_available_capacity(model, c, t):
         return model.c_out[c, t] <= model.c_cap[c] * C_P_AVA[c, t]
+
+    def storage_available_charge(model, sto, t):
+        return model.sto_charge[sto, t] * sto_cap2charge[sto] <= model.sto_cap[sto]
+
+    def storage_available_discharge(model, sto, t):
+            return model.sto_discharge[sto, t] * sto_cap2discharge[sto] <= model.sto_cap[sto]
 
     def storage_min_capacity(model, sto, t):
         return (
@@ -566,10 +603,12 @@ def run() -> None:
     model.con0 = pyo.Constraint(model.SEC_TYPE_0, model.Z, model.T, rule=energy_balance_endo)
     model.con1 = pyo.Constraint(model.SEC_TYPE_2, model.T, rule=energy_balance_exo_twoway)
     model.con2 = pyo.Constraint(model.SEC_TYPE_1, model.T, rule=energy_balance_exo_oneway)
-    model.con3 = pyo.Constraint(model.C, model.T, rule=available_conversion)
-    model.con4 = pyo.Constraint(model.STO, model.T, rule=storage_min_capacity)
-    model.con5 = pyo.Constraint(model.STO, model.T, rule=storage_max_capacity)
-    model.con6 = pyo.Constraint(model.STO, model.T, rule=storage_balance)
+    model.con3 = pyo.Constraint(model.C, model.T, rule=converter_available_capacity)
+    model.con4 = pyo.Constraint(model.STO, model.T, rule=storage_available_charge)
+    model.con5 = pyo.Constraint(model.STO, model.T, rule=storage_available_discharge)
+    model.con6 = pyo.Constraint(model.STO, model.T, rule=storage_min_capacity)
+    model.con7 = pyo.Constraint(model.STO, model.T, rule=storage_max_capacity)
+    model.con8 = pyo.Constraint(model.STO, model.T, rule=storage_balance)
 
 
     solver = pyo.SolverFactory("gurobi")

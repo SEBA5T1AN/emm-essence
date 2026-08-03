@@ -279,6 +279,8 @@ def run() -> None:
     d_priceElast = D['demandType'].map(D_T['priceElasticity']).to_numpy()
     d_refPrice = D['demandType'].map(D_T['referencePrice']).to_numpy()
     d_totalLoad = D['totalLoad'].to_numpy()
+    d_lsCap = D['lsEnergyCapacity'].to_numpy()
+    d_lsPower = D['lsChargingPower'].to_numpy()
     d_load0 = d_totalLoad[:, None] * D_P
     d_sectorType = D['demandType'].map(D_T['medium']).map(M['sectorType']).to_numpy()
     d_var_set = np.where((d_sectorType == 0) & (d_isElastic))[0]
@@ -366,6 +368,9 @@ def run() -> None:
     model.ia_volume = pyo.Var(model.IA, model.T, bounds=lambda m,ia,t: (0, ia_limit[ia]))
     model.ea_volume = pyo.Var(model.EA, model.T, bounds=lambda m,ea,t: (0, ea_limit[ea]))
     model.demand = pyo.Var(model.D_VAR, model.T, domain=pyo.NonNegativeReals)
+    model.dsm_level = pyo.Var(model.D_VAR, model.T, bounds=lambda m,d,t: (0, d_lsCap[d]))
+    model.dsm_charge = pyo.Var(model.D_VAR, model.T, bounds=lambda m,d,t: (0, d_lsPower[d]))
+    model.dsm_discharge = pyo.Var(model.D_VAR, model.T, bounds=lambda m,d,t: (0, d_lsPower[d]))
     model.trade = pyo.Var(model.TR, model.T, model.TR_DIR, bounds=lambda m,tr,t,tr_d: (0, tr_limits[tr][tr_d]))
 
 
@@ -452,6 +457,10 @@ def run() -> None:
         
         lhs = (
             pyo.quicksum(
+                model.dsm_charge[d, t]
+                for d in varDemands
+            )
+            + pyo.quicksum(
                 model.c_out[c, t]
                 for c in incomingConverters
             )
@@ -465,16 +474,14 @@ def run() -> None:
             )
             + pyo.quicksum(
                 model.trade[tr, t, 0]
-                for tr in incomingTrades
-            )
-            - pyo.quicksum(
-                model.trade[tr, t, 1]
+                - model.trade[tr, t, 1]
                 for tr in incomingTrades
             )
         )
         rhs = (
             pyo.quicksum(
                 model.demand[d, t]
+                + model.dsm_discharge[d, t]
                 for d in varDemands
             )
             + pyo.quicksum(
@@ -495,10 +502,7 @@ def run() -> None:
             )
             + pyo.quicksum(
                 model.trade[tr, t, 0]
-                for tr in outgoingTrades
-            )
-            - pyo.quicksum(
-                model.trade[tr, t, 1]
+                - model.trade[tr, t, 1]
                 for tr in outgoingTrades
             )
         )
@@ -609,6 +613,18 @@ def run() -> None:
             - model.sto_spill[sto, t]
         )
 
+    def demand_side_management(model, d, t):
+        if t == model.T.first():
+            prev = model.T.last()
+        else:
+            prev = model.T.prev(t)
+        return (
+            model.dsm_level[d, t]
+            == 1.01 * model.dsm_level[d, prev] ###
+            + model.dsm_charge[d, t] * 1.0 ### eff
+            - model.dsm_discharge[d, t]
+        )
+
 
     model.con0 = pyo.Constraint(model.SEC_TYPE_0, model.Z, model.T, rule=energy_balance_endo)
     model.con1 = pyo.Constraint(model.SEC_TYPE_2, model.T, rule=energy_balance_exo_twoway)
@@ -619,6 +635,7 @@ def run() -> None:
     model.con6 = pyo.Constraint(model.STO, model.T, rule=storage_min_capacity)
     model.con7 = pyo.Constraint(model.STO, model.T, rule=storage_max_capacity)
     model.con8 = pyo.Constraint(model.STO, model.T, rule=storage_balance)
+    model.con9 = pyo.Constraint(model.D_VAR, model.T, rule=demand_side_management)
 
 
     solver = pyo.SolverFactory("gurobi")
@@ -635,5 +652,8 @@ def run() -> None:
     pyo_var_to_csv(var = model.ia_volume, path = RESULTS_DIR)
     pyo_var_to_csv(var = model.ea_volume, path = RESULTS_DIR)
     pyo_var_to_csv(var = model.demand, path = RESULTS_DIR)
+    pyo_var_to_csv(var = model.dsm_level, path = RESULTS_DIR)
+    pyo_var_to_csv(var = model.dsm_charge, path = RESULTS_DIR)
+    pyo_var_to_csv(var = model.dsm_discharge, path = RESULTS_DIR)
     pyo_var_to_csv(var = model.trade, path = RESULTS_DIR)
     #"""

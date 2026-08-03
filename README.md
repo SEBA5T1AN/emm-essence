@@ -72,4 +72,3 @@ Contributions, bug reports, feature requests, and suggestions are welcome.
 ## License
 
 EMM-Essence is released under the MIT License.
-

@@ -39,7 +39,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 Restart PowerShell after the installation.
 
-### 2. Install EMMEssence
+### 2. Install EMM-Essence
 
 ```bash
 git clone https://github.com/SEBA5T1AN/emm-essence.git
@@ -47,7 +47,7 @@ cd emm-essence
 uv sync --locked --no-dev
 ```
 
-### 3. Run EMMEssence
+### 3. Run EMM-Essence
 
 ```bash
 uv run emmessence

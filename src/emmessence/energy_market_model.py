@@ -364,7 +364,7 @@ def run() -> None:
     model.sto_level = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
     model.sto_charge = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
     model.sto_discharge = pyo.Var(model.STO, model.T, domain=pyo.NonNegativeReals)
-    model.sto_spill = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, STO_P_NAT_INFLOW[sto, t])) # or domain=pyo.NonNegativeReals)
+    model.sto_spill = pyo.Var(model.STO, model.T, bounds=lambda m,sto,t: (0, sto_natInflow[sto] * STO_P_NAT_INFLOW[sto, t])) # or domain=pyo.NonNegativeReals)
     model.ia_volume = pyo.Var(model.IA, model.T, bounds=lambda m,ia,t: (0, ia_limit[ia]))
     model.ea_volume = pyo.Var(model.EA, model.T, bounds=lambda m,ea,t: (0, ea_limit[ea]))
     model.demand = pyo.Var(model.D_VAR, model.T, domain=pyo.NonNegativeReals)

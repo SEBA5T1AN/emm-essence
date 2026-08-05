@@ -616,11 +616,13 @@ def run() -> None:
     def demand_side_management(model, d, t):
         if t == model.T.first():
             prev = model.T.last()
+            level_factor = 1.00
         else:
             prev = model.T.prev(t)
+            level_factor = 1.01
         return (
             model.dsm_level[d, t]
-            == 1.01 * model.dsm_level[d, prev] ###
+            == level_factor * model.dsm_level[d, prev] ###
             + model.dsm_charge[d, t] * 1.0 ### eff
             - model.dsm_discharge[d, t]
         )

@@ -7,9 +7,9 @@
             "request": "launch",
             "module": "emmessence.main",
             "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/src",
-                "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+                "PYTHONPATH": "${workspaceFolder}\\src"
             }
         }
     ]

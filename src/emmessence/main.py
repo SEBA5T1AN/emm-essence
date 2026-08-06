@@ -1,4 +1,4 @@
-from .utils_logging import setup_logging
+from emmessence.utils_logging import setup_logging
 
 
 def main() -> None:

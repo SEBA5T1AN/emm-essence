@@ -5,7 +5,7 @@
             "name": "EMMEssence",
             "type": "debugpy",
             "request": "launch",
-            "module": "emmessence.cli",
+            "module": "emmessence.main",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src",

@@ -47,7 +47,20 @@ cd emm-essence
 uv sync --locked --no-dev
 ```
 
-### 3. Run EMM-Essence
+### 3. Run the Project
+
+Open the project in Visual Studio Code:
+
+```bash
+code .
+```
+
+Once the project is open, you can start the application by either:
+
+- Pressing **F5** to launch the debugger, or
+- Opening `main.py` and clicking the **▶ Run** button in the top-right corner.
+
+Alternatively, you can run the application directly from the terminal:
 
 ```bash
 uv run emmessence

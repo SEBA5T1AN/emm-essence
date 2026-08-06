@@ -8,7 +8,8 @@
             "module": "emmessence.cli",
             "cwd": "${workspaceFolder}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/src"
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
             }
         }
     ]

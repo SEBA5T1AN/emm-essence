@@ -30,6 +30,7 @@ class ProfileSpec(Spec):
     typeRow: str
     tsRow: str
     timesteps: int
+    isCompositional: bool
     defaultValue: float
     assignments = None
 
@@ -41,6 +42,8 @@ class ProfileSpec(Spec):
         if self.assignments is None:
             self._enrich_with_assignments()
         self._enrich_with_default_profile()
+        if self.isCompositional:
+            self._validateProfileSum()
     
     def _validate_row_names(self):
         attributeNames = [item[0] for item in self.fields]
@@ -102,6 +105,18 @@ class ProfileSpec(Spec):
         row = {col: None for col in self.table.columns}
         row[self.tsRow] = tuple(self.defaultValue for _ in range(self.timesteps))
         self.table.loc["default"] = pd.Series(row)
+
+    def _validateProfileSum(self):
+        for key, element in self.table.iterrows():
+            tsSum = sum(element[self.tsRow])
+            if abs(tsSum-1) > 1e-4:
+                raise ValueError(
+                    f"\n@{self.referenceNames[0]}\n"
+                    f"The timeseries of '{key}' "
+                    f"(in file '{shorten_path(self.path)}') "
+                    f"has a sum of '{tsSum}', "
+                    f"which is outside the given tolerance to 1.\n"
+                )
 
     def _are_tuples_valid_attribute_values(self):
         return True

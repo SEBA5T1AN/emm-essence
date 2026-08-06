@@ -24,6 +24,7 @@ def valid_profilespec_factory(
         typeRow = "type",
         tsRow = "timeseries",
         timesteps = 4,
+        isCompositional = False,
         defaultValue = 1.0,
         newTimeseries = None,
         keysMatter = False,
@@ -70,6 +71,7 @@ def valid_profilespec_factory(
         typeRow = typeRow,
         tsRow = tsRow,
         timesteps = timesteps,
+        isCompositional = isCompositional,
         defaultValue = defaultValue,
     )
 
@@ -200,7 +202,7 @@ def test_validate_exclusive_assignments_ok(dataframesA):
         },
     ]
 )
-def test_enrich_with_assignments_fail(dataframesB):
+def test_enrich_with_assignments_fails(dataframesB):
     with pytest.raises(ValueError):
         valid_profilespec_factory(tabledata = dataframesB)
 
@@ -266,6 +268,35 @@ def test_enrich_with_default_profile_ok():
     )
     assert "default" in aProfileSpec.table.index
     pdt.assert_series_equal(defaultEntry, expectedEntry)
+
+
+def test_validateProfileSum_ok():
+    valid_profilespec_factory(
+        tabledata = {
+            "key": ["key0"],
+            "node": [("N1", "N2")],
+            "type": [("Wind", "Solar")],
+            "timeseries": [[0.2500250, 0.2500250, 0.2500250, 0.2500250]],
+        },
+        timesteps = 4,
+        isCompositional = True,
+        defaultValue = 0.25
+    )
+
+
+def test_validateProfileSum_fails():
+    with pytest.raises(ValueError):
+        valid_profilespec_factory(
+            tabledata = {
+                "key": ["key0"],
+                "node": [("N1", "N2")],
+                "type": [("Wind", "Solar")],
+                "timeseries": [[0.2500251, 0.2500251, 0.2500251, 0.2500251]],
+            },
+            timesteps = 4,
+            isCompositional = True,
+            defaultValue = 0.25
+        )
 
 
 @pytest.mark.parametrize(

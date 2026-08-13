@@ -78,10 +78,6 @@ uv run pytest
 
 A minimal working example with sample input data is included to demonstrate the complete workflow from data validation and model construction to optimization and result export.
 
-## Contributing
-
-Contributions, bug reports, feature requests, and suggestions are welcome.
-
 ## License
 
 EMM-Essence is released under the MIT License.

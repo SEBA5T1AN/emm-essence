@@ -36,7 +36,7 @@ dev = [
 ]
 
 [project.scripts]
-emmessence = "emmessence.cli:main"
+emmessence = "emmessence.main:main"
 
 [project.urls]
 Homepage = "https://github.com/SEBA5T1AN/EMMEssence"

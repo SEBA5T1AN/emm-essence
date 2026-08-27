@@ -3,7 +3,10 @@ from itertools import chain
 import numpy as np
 import pyomo.environ as pyo
 
-from .profilespec import object_profile_matrix
+from .profilespec import (
+    map_profiles,
+    object_profile_matrix,
+)
 from .user_specs import (
     CO2_PRICE,
     CONVERTER_AVA_PROFILES_DATA,
@@ -13,6 +16,7 @@ from .user_specs import (
     DEMAND_TYPES_DATA,
     DEMANDS_DATA,
     EXPORT_ACCESSES_DATA,
+    GROUPING_ENABLED,
     IMPORT_ACCESSES_DATA,
     LINES_DATA,
     MEDIA_DATA,
@@ -148,11 +152,11 @@ def run() -> None:
     check_unused_but_defined_keys(subject = ZONES_DATA)
     check_unused_but_defined_keys(subject = MEDIA_DATA)
 
-    C = CONVERTERS_DATA.table
+    C_SINGLE = CONVERTERS_DATA.table
     C_T = CONVERTER_TYPES_DATA.table
-    STO = STORAGES_DATA.table
+    STO_SINGLE = STORAGES_DATA.table
     STO_T = STORAGE_TYPES_DATA.table
-    D = DEMANDS_DATA.table
+    D_SINGLE = DEMANDS_DATA.table
     D_T = DEMAND_TYPES_DATA.table
     L = LINES_DATA.table
     M = MEDIA_DATA.table
@@ -162,24 +166,45 @@ def run() -> None:
     IA = IMPORT_ACCESSES_DATA.table
     EA = EXPORT_ACCESSES_DATA.table
 
-    C_P_AVA = object_profile_matrix(
-        objectTable = C,
+    C_SINGLE = C_SINGLE[
+        C_SINGLE['converterType'].map(C_T['outputMedium']).map(M['sectorType'])
+        != 1
+    ]
+    STO_SINGLE = STO_SINGLE[
+        STO_SINGLE['storageType'].map(STO_T['medium']).map(M['sectorType'])
+        != 1
+    ]
+    D_SINGLE = D_SINGLE[
+        D_SINGLE['demandType'].map(D_T['medium']).map(M['sectorType'])
+        == 0
+    ]
+    TR = TR[
+        TR['medium'].map(M['sectorType'])
+        == 0
+    ]
+    EA = EA[
+        EA['medium'].map(M['sectorType'])
+        != 1
+    ]
+
+    C_SINGLE_P_AVA = object_profile_matrix(
+        objectTable = C_SINGLE,
         profileSpec = CONVERTER_AVA_PROFILES_DATA
     )
-    D_P = object_profile_matrix(
-        objectTable = D,
+    D_SINGLE_P = object_profile_matrix(
+        objectTable = D_SINGLE,
         profileSpec = DEMAND_PROFILES_DATA
     )
-    STO_P_MAX_LEVEL = object_profile_matrix(
-        objectTable = STO,
+    STO_SINGLE_P_MAX_LEVEL = object_profile_matrix(
+        objectTable = STO_SINGLE,
         profileSpec = STORAGE_MAX_LEVEL_PROFILES_DATA
     )
-    STO_P_MIN_LEVEL = object_profile_matrix(
-        objectTable = STO,
+    STO_SINGLE_P_MIN_LEVEL = object_profile_matrix(
+        objectTable = STO_SINGLE,
         profileSpec = STORAGE_MIN_LEVEL_PROFILES_DATA
     )
-    STO_P_NAT_INFLOW = object_profile_matrix(
-        objectTable = STO,
+    STO_SINGLE_P_NAT_INFLOW = object_profile_matrix(
+        objectTable = STO_SINGLE,
         profileSpec = STORAGE_NAT_INFLOW_PROFILES_DATA
     )
 
@@ -190,7 +215,119 @@ def run() -> None:
 
 
 
-    # sectors
+    # mapping before the grouping
+    C_SINGLE["zone"] = C_SINGLE["node"].map(N["zone"])
+    STO_SINGLE["zone"] = STO_SINGLE["node"].map(N["zone"])
+    D_SINGLE["zone"] = D_SINGLE["node"].map(N["zone"])
+    STO_SINGLE["e2pCharge"] = STO_SINGLE['energyCapacity'] / STO_SINGLE['chargePower']
+    STO_SINGLE["e2pDischarge"] = STO_SINGLE['energyCapacity'] / STO_SINGLE['dischargePower']
+
+    if GROUPING_ENABLED:
+        C_GROUP = (
+            C_SINGLE.assign(
+                profileKey=map_profiles(C_SINGLE, CONVERTER_AVA_PROFILES_DATA),
+                originalIndices=np.arange(len(C_SINGLE)),
+                originalKeys=C_SINGLE.index,
+            )
+            .groupby(
+                ["zone", "converterType", "isInvestment", "profileKey"],
+                as_index=False,
+            )
+            .agg(
+                capacity=("capacity", "sum"),
+                originalIndices=("originalIndices", list),
+                originalKeys=("originalKeys", list),
+            )
+        )
+        STO_GROUP = (
+            STO_SINGLE.assign(
+                minProfileKey=map_profiles(STO_SINGLE, STORAGE_MIN_LEVEL_PROFILES_DATA),
+                maxProfileKey=map_profiles(STO_SINGLE, STORAGE_MAX_LEVEL_PROFILES_DATA),
+                natProfileKey=map_profiles(STO_SINGLE, STORAGE_NAT_INFLOW_PROFILES_DATA),
+                originalIndices=np.arange(len(STO_SINGLE)),
+                originalKeys=STO_SINGLE.index,
+            )
+            .groupby(
+                [
+                    "zone",
+                    "storageType",
+                    "isInvestment",
+                    "e2pCharge",
+                    "e2pDischarge",
+                    "naturalInflow", ###
+                    "minProfileKey",
+                    "maxProfileKey",
+                    "natProfileKey",
+                ],
+                as_index=False,
+            )
+            .agg(
+                energyCapacity=("energyCapacity", "sum"),
+                originalIndices=("originalIndices", list),
+                originalKeys=("originalKeys", list),
+            )
+        )
+        D_GROUP = (
+            D_SINGLE.assign(
+                originalIndices=np.arange(len(D_SINGLE)),
+                originalKeys=D_SINGLE.index,
+            )
+            .groupby(["zone", "demandType"], as_index=False)
+            .agg(
+                totalLoad=("totalLoad", "sum"),
+                originalIndices=("originalIndices", list),
+                originalKeys=("originalKeys", list),
+            )
+        )
+
+        C_GROUP_P_AVA = np.stack([
+            C_SINGLE_P_AVA[indices[0]]
+            for indices in C_GROUP["originalIndices"]
+        ])
+        STO_GROUP_P_MAX_LEVEL = np.stack([
+            STO_SINGLE_P_MAX_LEVEL[indices[0]]
+            for indices in STO_GROUP["originalIndices"]
+        ])
+        STO_GROUP_P_MIN_LEVEL = np.stack([
+            STO_SINGLE_P_MIN_LEVEL[indices[0]]
+            for indices in STO_GROUP["originalIndices"]
+        ])
+        STO_GROUP_P_NAT_INFLOW = np.stack([
+            STO_SINGLE_P_NAT_INFLOW[indices[0]]
+            for indices in STO_GROUP["originalIndices"]
+        ])
+        D_GROUP_P = np.stack([
+            D_SINGLE_P[indices[0]]
+            for indices in D_GROUP["originalIndices"]
+        ])
+
+        C = C_GROUP
+        STO = STO_GROUP
+        D = D_GROUP
+        C_P_AVA = C_GROUP_P_AVA
+        STO_P_MAX_LEVEL = STO_GROUP_P_MAX_LEVEL
+        STO_P_MIN_LEVEL = STO_GROUP_P_MIN_LEVEL
+        STO_P_NAT_INFLOW = STO_GROUP_P_NAT_INFLOW
+        D_P = D_GROUP_P
+    else:
+        C = C_SINGLE
+        STO = STO_SINGLE
+        D = D_SINGLE
+        C_P_AVA = C_SINGLE_P_AVA
+        STO_P_MAX_LEVEL = STO_SINGLE_P_MAX_LEVEL
+        STO_P_MIN_LEVEL = STO_SINGLE_P_MIN_LEVEL
+        STO_P_NAT_INFLOW = STO_SINGLE_P_NAT_INFLOW
+        D_P = D_SINGLE_P
+    #"""
+
+
+
+
+
+
+
+
+    # sector
     m_sectorType = M['sectorType'].to_numpy()
     m_endo_set = np.where(m_sectorType == 0)[0]
     m_exo_oneway_set = np.where(m_sectorType == 1)[0]
@@ -198,117 +335,94 @@ def run() -> None:
     SECTORS = M.index
 
 
-    # zones
-    z_count = len(Z)
+    # zone
     ZONES = Z.index.to_numpy()
 
 
-    # converters
-    c_isInvestment = C['isInvestment'].to_numpy()
-    c_cap0 = C['capacity'].to_numpy()
+    # converter
+    c_eff = C['converterType'].map(C_T['efficiency']).to_numpy()
     c_outputBased = C['converterType'].map(C_T['hasOutputBasedValues']).to_numpy()
-    c_sector1Type = C['converterType'].map(C_T['outputMedium']).map(M['sectorType']).to_numpy()
-    c_set = np.where(c_sector1Type != 1)[0]
-    c_sec0 = C['converterType'].map(C_T['inputMedium']).to_numpy()[c_set]
-    c_sec1 = C['converterType'].map(C_T['outputMedium']).to_numpy()[c_set]
-    c_zone = C['node'].map(N['zone']).to_numpy()[c_set]
+    ioFactor = np.where(c_outputBased, 1.0, c_eff)
+    c_cap0 = C['capacity'].to_numpy() * ioFactor
+    # converter costs
+    c_emFactor = C['converterType'].map(C_T['inputMedium']).map(M['emissionFactor']).to_numpy()
+    c_fixCosts_inv = C['converterType'].map(C_T['invCost']).to_numpy() * C['isInvestment'].to_numpy() / ioFactor
+    c_fixCosts_om = C['converterType'].map(C_T['omCostFix']).to_numpy() / ioFactor
+    c_varCosts_om = C['converterType'].map(C_T['omCostVar']).to_numpy() / ioFactor
+    c_fixCosts = c_fixCosts_om + c_fixCosts_inv
+    c_varCosts = c_varCosts_om + (c_emFactor*CO2_PRICE) / c_eff
+    # converter dicts
     allOutgoingConverters = create_sector_zone_dict(
-        sectorArray = c_sec0, allowedSectors = SECTORS,
-        zoneArray = c_zone, allowedZones = ZONES
+        sectorArray = C['converterType'].map(C_T['inputMedium']).to_numpy(),
+        allowedSectors = SECTORS,
+        zoneArray = C['zone'].to_numpy(),
+        allowedZones = ZONES
     )
     allIncomingConverters = create_sector_zone_dict(
-        sectorArray = c_sec1, allowedSectors = SECTORS,
-        zoneArray = c_zone, allowedZones = ZONES
+        sectorArray = C['converterType'].map(C_T['outputMedium']).to_numpy(),
+        allowedSectors = SECTORS,
+        zoneArray = C['zone'].to_numpy(),
+        allowedZones = ZONES
     )
-    # converters costs
-    c_fixCosts_inv = C['converterType'].map(C_T['invCost']).to_numpy() * c_isInvestment
-    c_fixCosts_om = C['converterType'].map(C_T['omCostFix']).to_numpy()
-    c_varCosts_om = C['converterType'].map(C_T['omCostVar']).to_numpy()
-    c_emFactor = C['converterType'].map(C_T['inputMedium']).map(M['emissionFactor']).to_numpy()
-    c_eff = C['converterType'].map(C_T['efficiency']).to_numpy()
-    c_cap0 = np.where(
-        c_outputBased,
-        c_cap0,
-        c_cap0 * c_eff
-    )
-    c_fixCosts_inv = np.where(
-        c_outputBased,
-        c_fixCosts_inv,
-        c_fixCosts_inv/c_eff
-    )
-    c_fixCosts_om = np.where(
-        c_outputBased,
-        c_fixCosts_om,
-        c_fixCosts_om/c_eff
-    )
-    c_varCosts_om = np.where(
-        c_outputBased,
-        c_varCosts_om,
-        c_varCosts_om/c_eff
-    )
-    c_fixCosts_om_inv = c_fixCosts_om + c_fixCosts_inv
-    c_varCosts_om_co2 = c_varCosts_om + (c_emFactor*CO2_PRICE) / c_eff
 
 
-    # storages
-    sto_isInvestment = STO['isInvestment'].to_numpy()
+    # storage
     sto_cap = STO['energyCapacity'].to_numpy()
-    sto_maxCharge = STO['chargePower'].to_numpy()
-    sto_maxDischarge = STO['dischargePower'].to_numpy()
-    sto_cap2charge = sto_cap / sto_maxCharge
-    sto_cap2discharge = sto_cap / sto_maxDischarge
+    sto_e2pCharge = STO['e2pCharge'].to_numpy()
+    sto_e2pDischarge = STO['e2pDischarge'].to_numpy()
     sto_natInflow = STO['naturalInflow'].to_numpy()
     sto_eff = STO['storageType'].map(STO_T['efficiency']).to_numpy()
+    # storage costs
     sto_fixCosts_om = STO['storageType'].map(STO_T['omCostFix']).to_numpy()
-    sto_fixCosts_inv = STO['storageType'].map(STO_T['invCost']).to_numpy() * sto_isInvestment
+    sto_fixCosts_inv = STO['storageType'].map(STO_T['invCost']).to_numpy() * STO['isInvestment'].to_numpy()
     sto_varCosts_om = STO['storageType'].map(STO_T['omCostVar']).to_numpy() ###
-    sto_fixCosts_om_inv = sto_fixCosts_om + sto_fixCosts_inv
-
-    sto_sectorType = STO['storageType'].map(STO_T['medium']).map(M['sectorType']).to_numpy()
-    sto_set = np.where(sto_sectorType != 1)[0]
-    sto_sec = STO['storageType'].map(STO_T['medium']).to_numpy()[sto_set]
-    sto_zone = STO['node'].map(N['zone']).to_numpy()[sto_set]
+    sto_fixCosts = sto_fixCosts_om + sto_fixCosts_inv
+    # storage dict
     allStorages = create_sector_zone_dict(
-        sectorArray = sto_sec, allowedSectors = SECTORS,
-        zoneArray = sto_zone, allowedZones = ZONES
+        sectorArray = STO['storageType'].map(STO_T['medium']).to_numpy(),
+        allowedSectors = SECTORS,
+        zoneArray = STO['zone'].to_numpy(),
+        allowedZones = ZONES
     )
 
 
-    # demands
+    # demand
+    d_totalLoad = D['totalLoad'].to_numpy()
+    d_lsCap = D['demandType'].map(D_T['lsEnergyAsTimestepsOfAvgLoad']).to_numpy() * d_totalLoad/T_COUNT
+    d_lsPower = d_lsCap / D['demandType'].map(D_T['lsE2P']).to_numpy()
+    d_load0 = d_totalLoad[:, None] * D_P
+    # demand sets
     d_isElastic = D['demandType'].map(D_T['isElastic']).to_numpy()
+    d_var_set = np.where(d_isElastic)[0]
+    d_fix_set = np.where(~d_isElastic)[0]
+    # variable demand
     d_priceElast = D['demandType'].map(D_T['priceElasticity']).to_numpy()
     d_refPrice = D['demandType'].map(D_T['referencePrice']).to_numpy()
-    d_totalLoad = D['totalLoad'].to_numpy()
-    d_lsCap = D['lsEnergyCapacity'].to_numpy()
-    d_lsPower = D['lsChargingPower'].to_numpy()
-    d_load0 = d_totalLoad[:, None] * D_P
-    d_sectorType = D['demandType'].map(D_T['medium']).map(M['sectorType']).to_numpy()
-    d_var_set = np.where((d_sectorType == 0) & (d_isElastic))[0]
-    d_fix_set = np.where((d_sectorType == 0) & (~d_isElastic))[0]
     d_curveM = d_refPrice[d_var_set, None] / (d_priceElast[d_var_set, None]*d_load0[d_var_set])
     d_curveA = d_refPrice[d_var_set, None] + d_curveM*d_load0[d_var_set]
-    d_sec = D['demandType'].map(D_T['medium']).to_numpy()
-    d_zone = D['node'].map(N['zone']).to_numpy()
+    # demand dict
     allDemands = create_sector_zone_dict(
-        sectorArray = d_sec, allowedSectors = SECTORS,
-        zoneArray = d_zone, allowedZones = ZONES
+        sectorArray = D['demandType'].map(D_T['medium']).to_numpy(),
+        allowedSectors = SECTORS,
+        zoneArray = D['zone'].to_numpy(),
+        allowedZones = ZONES
     )
 
 
-    # trades
+    # trade
     tr_limits = TR[['limitForward', 'limitBackward']].to_numpy()
-    tr_sectorType = TR['medium'].map(M['sectorType']).to_numpy()
-    tr_set = np.where(tr_sectorType == 0)[0]
-    tr_sec = TR['medium'].to_numpy()[tr_set]
-    tr_zone0 = TR['sourceZone'].to_numpy()[tr_set]
-    tr_zone1 = TR['targetZone'].to_numpy()[tr_set]
+    tr_sec = TR['medium'].to_numpy()
     allIncomingTrades = create_sector_zone_dict(
-        sectorArray = tr_sec, allowedSectors = SECTORS,
-        zoneArray = tr_zone1, allowedZones = ZONES
+        sectorArray = tr_sec,
+        allowedSectors = SECTORS,
+        zoneArray = TR['targetZone'].to_numpy(),
+        allowedZones = ZONES
     )
     allOutgoingTrades = create_sector_zone_dict(
-        sectorArray = tr_sec, allowedSectors = SECTORS,
-        zoneArray = tr_zone0, allowedZones = ZONES
+        sectorArray = tr_sec,
+        allowedSectors = SECTORS,
+        zoneArray = TR['sourceZone'].to_numpy(),
+        allowedZones = ZONES
     )
 
 
@@ -317,20 +431,17 @@ def run() -> None:
     ea_limit = EA['limitPerTimestep'].to_numpy()
     ia_mediumPrice = IA['medium'].map(M['price']).to_numpy()
     ea_mediumPrice = EA['medium'].map(M['price']).to_numpy()
-    ea_sectorType = EA['medium'].map(M['sectorType']).to_numpy()
-    ia_set = [i for i in range(len(IA))]
-    ea_set = np.where(ea_sectorType != 1)[0]
-    ia_sec = IA['medium'].to_numpy()[ia_set]
-    ea_sec = EA['medium'].to_numpy()[ea_set]
-    ia_zone = IA['node'].map(N['zone']).to_numpy()[ia_set]
-    ea_zone = EA['node'].map(N['zone']).to_numpy()[ea_set]
     allImportAccesses = create_sector_zone_dict(
-        sectorArray = ia_sec, allowedSectors = SECTORS,
-        zoneArray = ia_zone, allowedZones = ZONES
+        sectorArray = IA['medium'].to_numpy(),
+        allowedSectors = SECTORS,
+        zoneArray = IA['node'].map(N['zone']).to_numpy(),
+        allowedZones = ZONES
     )
     allExportAccesses = create_sector_zone_dict(
-        sectorArray = ea_sec, allowedSectors = SECTORS,
-        zoneArray = ea_zone, allowedZones = ZONES
+        sectorArray = EA['medium'].to_numpy(),
+        allowedSectors = SECTORS,
+        zoneArray = EA['node'].map(N['zone']).to_numpy(),
+        allowedZones = ZONES
     )
 
 
@@ -347,15 +458,16 @@ def run() -> None:
     model.SEC_TYPE_0 = pyo.Set(initialize = m_endo_set)
     model.SEC_TYPE_1 = pyo.Set(initialize = m_exo_oneway_set)
     model.SEC_TYPE_2 = pyo.Set(initialize = m_exo_twoway_set)
-    model.Z = pyo.RangeSet(0, z_count-1)
+    model.Z = pyo.RangeSet(0, len(Z)-1)
+    model.D = pyo.RangeSet(0, len(D)-1)
     model.D_VAR = pyo.Set(initialize = d_var_set)
     model.D_FIX = pyo.Set(initialize = d_fix_set)
-    model.C = pyo.Set(initialize = c_set)
-    model.STO = pyo.Set(initialize = sto_set)
-    model.TR = pyo.Set(initialize = tr_set)
+    model.C = pyo.RangeSet(0, len(C)-1)
+    model.STO = pyo.RangeSet(0, len(STO)-1)
+    model.TR = pyo.RangeSet(0, len(TR)-1)
     model.TR_DIR = pyo.Set(initialize = [0, 1])
-    model.IA = pyo.Set(initialize = ia_set)
-    model.EA = pyo.Set(initialize = ea_set)
+    model.IA = pyo.RangeSet(0, len(IA)-1)
+    model.EA = pyo.RangeSet(0, len(EA)-1)
     model.T = pyo.RangeSet(0, T_COUNT-1)
 
     model.c_cap = pyo.Var(model.C, bounds=lambda m,c: (0, c_cap0[c]))
@@ -368,9 +480,9 @@ def run() -> None:
     model.ia_volume = pyo.Var(model.IA, model.T, bounds=lambda m,ia,t: (0, ia_limit[ia]))
     model.ea_volume = pyo.Var(model.EA, model.T, bounds=lambda m,ea,t: (0, ea_limit[ea]))
     model.demand = pyo.Var(model.D_VAR, model.T, domain=pyo.NonNegativeReals)
-    model.dsm_level = pyo.Var(model.D_VAR, model.T, bounds=lambda m,d,t: (0, d_lsCap[d]))
-    model.dsm_charge = pyo.Var(model.D_VAR, model.T, bounds=lambda m,d,t: (0, d_lsPower[d]))
-    model.dsm_discharge = pyo.Var(model.D_VAR, model.T, bounds=lambda m,d,t: (0, d_lsPower[d]))
+    model.dsm_level = pyo.Var(model.D, model.T, bounds=lambda m,d,t: (0, d_lsCap[d]))
+    model.dsm_charge = pyo.Var(model.D, model.T, bounds=lambda m,d,t: (0, d_lsPower[d]))
+    model.dsm_discharge = pyo.Var(model.D, model.T, bounds=lambda m,d,t: (0, d_lsPower[d]))
     model.trade = pyo.Var(model.TR, model.T, model.TR_DIR, bounds=lambda m,tr,t,tr_d: (0, tr_limits[tr][tr_d]))
 
 
@@ -384,16 +496,16 @@ def run() -> None:
             for t in model.T
         )
         all_converter_fix_costs = pyo.quicksum(
-            model.c_cap[c] * c_fixCosts_om_inv[c]
+            model.c_cap[c] * c_fixCosts[c]
             for c in model.C
         )
         all_converter_var_costs = pyo.quicksum(
-            model.c_out[c, t] * c_varCosts_om_co2[c]
+            model.c_out[c, t] * c_varCosts[c]
             for c in model.C
             for t in model.T
         )
         all_storage_fix_costs = pyo.quicksum(
-            model.sto_cap[sto] * sto_fixCosts_om_inv[sto]
+            model.sto_cap[sto] * sto_fixCosts[sto]
             for sto in model.STO
         )
         all_import_costs = pyo.quicksum(
@@ -439,6 +551,7 @@ def run() -> None:
         exports = allExportAccesses[secEndo][z]
         incomingTrades = allIncomingTrades[secEndo][z]
         outgoingTrades = allOutgoingTrades[secEndo][z]
+        demands = allDemands[secEndo][z]
         varDemands = np.intersect1d(allDemands[secEndo][z], d_var_set)
         fixDemands = np.intersect1d(allDemands[secEndo][z], d_fix_set)
 
@@ -458,7 +571,7 @@ def run() -> None:
         lhs = (
             pyo.quicksum(
                 model.dsm_charge[d, t]
-                for d in varDemands
+                for d in demands
             )
             + pyo.quicksum(
                 model.c_out[c, t]
@@ -481,12 +594,15 @@ def run() -> None:
         rhs = (
             pyo.quicksum(
                 model.demand[d, t]
-                + model.dsm_discharge[d, t]
                 for d in varDemands
             )
             + pyo.quicksum(
                 d_load0[d, t]
                 for d in fixDemands
+            )
+            + pyo.quicksum(
+                model.dsm_discharge[d, t]
+                for d in demands
             )
             + pyo.quicksum(
                 model.c_out[c, t] / c_eff[c]
@@ -582,10 +698,10 @@ def run() -> None:
         return model.c_out[c, t] <= model.c_cap[c] * C_P_AVA[c, t]
 
     def storage_available_charge(model, sto, t):
-        return model.sto_charge[sto, t] * sto_cap2charge[sto] <= model.sto_cap[sto]
+        return model.sto_charge[sto, t] * sto_e2pCharge[sto] <= model.sto_cap[sto]
 
     def storage_available_discharge(model, sto, t):
-            return model.sto_discharge[sto, t] * sto_cap2discharge[sto] <= model.sto_cap[sto]
+            return model.sto_discharge[sto, t] * sto_e2pDischarge[sto] <= model.sto_cap[sto]
 
     def storage_min_capacity(model, sto, t):
         return (
@@ -623,7 +739,7 @@ def run() -> None:
         return (
             model.dsm_level[d, t]
             == level_factor * model.dsm_level[d, prev] ###
-            + model.dsm_charge[d, t] * 1.0 ### eff
+            + model.dsm_charge[d, t]
             - model.dsm_discharge[d, t]
         )
 
@@ -637,7 +753,7 @@ def run() -> None:
     model.con6 = pyo.Constraint(model.STO, model.T, rule=storage_min_capacity)
     model.con7 = pyo.Constraint(model.STO, model.T, rule=storage_max_capacity)
     model.con8 = pyo.Constraint(model.STO, model.T, rule=storage_balance)
-    model.con9 = pyo.Constraint(model.D_VAR, model.T, rule=demand_side_management)
+    model.con9 = pyo.Constraint(model.D, model.T, rule=demand_side_management)
 
 
     solver = pyo.SolverFactory("gurobi")

@@ -1,4 +1,4 @@
-key,medium,consumerGroup,isElastic,priceElasticity,referencePrice
-DT1,electricity,residents,true,0.001,90
-DT2,electricity,industry,true,0.001,90
-DT3,gas,residents,false,0,0
+key,medium,consumerGroup,lsEnergyAsTimestepsOfAvgLoad,lsE2P,isElastic,priceElasticity,referencePrice
+DT1,electricity,residents,0,1,true,0.001,90
+DT2,electricity,industry,24,48,true,0.001,90
+DT3,gas,residents,0,1,false,0,0

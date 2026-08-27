@@ -139,11 +139,11 @@ class ProfileSpec(Spec):
 
 
 def object_profile_matrix(objectTable: pd.DataFrame, profileSpec: ProfileSpec):
-    profileKeys = _map_profiles(objectTable, profileSpec)
+    profileKeys = map_profiles(objectTable, profileSpec)
     result = np.array(profileSpec.table.loc[profileKeys, profileSpec.tsRow].tolist())
     return result
 
-def _map_profiles(objectTable: pd.DataFrame, profileSpec: ProfileSpec):
+def map_profiles(objectTable: pd.DataFrame, profileSpec: ProfileSpec):
     profiles = {}
     unassignedCombiKeys = []
     for objKey in objectTable.index:

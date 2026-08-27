@@ -9,6 +9,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
 T_COUNT = 8760
 CO2_PRICE = 113.4
+GROUPING_ENABLED = True
 
 
 
@@ -196,8 +197,6 @@ DEMANDS_DATA: Final = TableSpec(
         ("node", str),
         ("demandType", str),
         ("totalLoad", float, 0.0, 1e9),
-        ("lsEnergyCapacity", float, 0.0, 1e9),
-        ("lsChargingPower", float, 0.0, 1e9),
     ),
     separator = ",",
     parents = [],
@@ -214,6 +213,8 @@ DEMAND_TYPES_DATA: Final = TableSpec(
         ("key", str),
         ("medium", str),
         ("consumerGroup", str),
+        ("lsEnergyAsTimestepsOfAvgLoad", int, 0.0, 1e9),
+        ("lsE2P", int, 1.0, 1e9),
         ("isElastic", bool),
         ("priceElasticity", float, 0.0, 1e9),
         ("referencePrice", float, 0.0, 1e9),

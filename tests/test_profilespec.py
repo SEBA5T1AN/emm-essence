@@ -6,7 +6,7 @@ import pytest
 
 from emmessence.profilespec import (
     ProfileSpec,
-    _map_profiles,
+    map_profiles,
     _pair_combinations,
     object_profile_matrix,
 )
@@ -334,7 +334,7 @@ def test_map_profiles_ok():
         index=["Gen0", "Gen1", "Gen2", "Gen3"]
     )
     aProfileSpec = valid_profilespec_factory(keysMatter = True)
-    profileKeys = _map_profiles(aTable, aProfileSpec)
+    profileKeys = map_profiles(aTable, aProfileSpec)
     expectedProfileKeys = pd.Series(
         {
             "Gen0": "key0",

@@ -3,39 +3,17 @@ from itertools import chain
 import numpy as np
 import pyomo.environ as pyo
 
-from .profilespec import (
-    map_profiles,
-    object_profile_matrix,
+from .data_preprocessing import preprocess_data
+from .table_processing import (
+    create_single_tables,
+    group_tables,
 )
 from .user_specs import (
     CO2_PRICE,
-    CONVERTER_AVA_PROFILES_DATA,
-    CONVERTER_TYPES_DATA,
-    CONVERTERS_DATA,
-    DEMAND_PROFILES_DATA,
-    DEMAND_TYPES_DATA,
-    DEMANDS_DATA,
-    EXPORT_ACCESSES_DATA,
     GROUPING_ENABLED,
-    IMPORT_ACCESSES_DATA,
-    LINES_DATA,
-    MEDIA_DATA,
-    NODES_DATA,
     RESULTS_DIR,
-    STORAGE_MAX_LEVEL_PROFILES_DATA,
-    STORAGE_MIN_LEVEL_PROFILES_DATA,
-    STORAGE_NAT_INFLOW_PROFILES_DATA,
-    STORAGE_TYPES_DATA,
-    STORAGES_DATA,
     T_COUNT,
-    TRADE_LIMITS_DATA,
-    ZONES_DATA,
-)
-from .utils_key_matching import (
-    check_unused_but_defined_keys,
-    check_used_but_undefined_keys,
-    exclusion_chain_reaction,
-    inform_about_excluded_keys,
+    allDataObjects,
 )
 from .utils_logging import pyo_var_to_csv
 from .utils_mapping import create_sector_zone_dict
@@ -51,274 +29,32 @@ def run() -> None:
             f"The value must be greater than 0\n"
         )
 
-    exclusion_chain_reaction(
-        subject = MEDIA_DATA,
-        keySubset = MEDIA_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = ZONES_DATA,
-        keySubset = ZONES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = NODES_DATA,
-        keySubset = NODES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = CONVERTER_TYPES_DATA,
-        keySubset = CONVERTER_TYPES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = STORAGE_TYPES_DATA,
-        keySubset = STORAGE_TYPES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = DEMAND_TYPES_DATA,
-        keySubset = DEMAND_TYPES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = CONVERTERS_DATA,
-        keySubset = CONVERTERS_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = STORAGES_DATA,
-        keySubset = STORAGES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = DEMANDS_DATA,
-        keySubset = DEMANDS_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = IMPORT_ACCESSES_DATA,
-        keySubset = IMPORT_ACCESSES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = EXPORT_ACCESSES_DATA,
-        keySubset = EXPORT_ACCESSES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = TRADE_LIMITS_DATA,
-        keySubset = TRADE_LIMITS_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = CONVERTER_AVA_PROFILES_DATA,
-        keySubset = CONVERTER_AVA_PROFILES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = DEMAND_PROFILES_DATA,
-        keySubset = DEMAND_PROFILES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = STORAGE_MAX_LEVEL_PROFILES_DATA,
-        keySubset = STORAGE_MAX_LEVEL_PROFILES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = STORAGE_MIN_LEVEL_PROFILES_DATA,
-        keySubset = STORAGE_MIN_LEVEL_PROFILES_DATA.excludedKeys
-    )
-    exclusion_chain_reaction(
-        subject = STORAGE_NAT_INFLOW_PROFILES_DATA,
-        keySubset = STORAGE_NAT_INFLOW_PROFILES_DATA.excludedKeys
+    preprocessedData = preprocess_data(allDataObjects)
+    singleTables = create_single_tables(preprocessedData)
+    tables = (
+        group_tables(singleTables)
+        if GROUPING_ENABLED
+        else singleTables
     )
 
-    inform_about_excluded_keys(subject = MEDIA_DATA)
-    inform_about_excluded_keys(subject = ZONES_DATA)
-    inform_about_excluded_keys(subject = NODES_DATA)
-    inform_about_excluded_keys(subject = CONVERTER_TYPES_DATA)
-    inform_about_excluded_keys(subject = STORAGE_TYPES_DATA)
-    inform_about_excluded_keys(subject = DEMAND_TYPES_DATA)
-    inform_about_excluded_keys(subject = CONVERTERS_DATA)
-    inform_about_excluded_keys(subject = STORAGES_DATA)
-    inform_about_excluded_keys(subject = DEMANDS_DATA)
-    inform_about_excluded_keys(subject = IMPORT_ACCESSES_DATA)
-    inform_about_excluded_keys(subject = EXPORT_ACCESSES_DATA)
-    inform_about_excluded_keys(subject = TRADE_LIMITS_DATA)
-    inform_about_excluded_keys(subject = CONVERTER_AVA_PROFILES_DATA)
-    inform_about_excluded_keys(subject = DEMAND_PROFILES_DATA)
-    inform_about_excluded_keys(subject = STORAGE_MAX_LEVEL_PROFILES_DATA)
-    inform_about_excluded_keys(subject = STORAGE_MIN_LEVEL_PROFILES_DATA)
-    inform_about_excluded_keys(subject = STORAGE_NAT_INFLOW_PROFILES_DATA)
-
-    check_used_but_undefined_keys(subject = CONVERTER_TYPES_DATA)
-    check_used_but_undefined_keys(subject = STORAGE_TYPES_DATA)
-    check_used_but_undefined_keys(subject = DEMAND_TYPES_DATA)
-    check_used_but_undefined_keys(subject = NODES_DATA)
-    check_used_but_undefined_keys(subject = ZONES_DATA)
-    check_used_but_undefined_keys(subject = MEDIA_DATA)
-
-    check_unused_but_defined_keys(subject = CONVERTER_TYPES_DATA)
-    check_unused_but_defined_keys(subject = STORAGE_TYPES_DATA)
-    check_unused_but_defined_keys(subject = DEMAND_TYPES_DATA)
-    check_unused_but_defined_keys(subject = NODES_DATA)
-    check_unused_but_defined_keys(subject = ZONES_DATA)
-    check_unused_but_defined_keys(subject = MEDIA_DATA)
-
-    C_SINGLE = CONVERTERS_DATA.table
-    C_T = CONVERTER_TYPES_DATA.table
-    STO_SINGLE = STORAGES_DATA.table
-    STO_T = STORAGE_TYPES_DATA.table
-    D_SINGLE = DEMANDS_DATA.table
-    D_T = DEMAND_TYPES_DATA.table
-    L = LINES_DATA.table
-    M = MEDIA_DATA.table
-    N = NODES_DATA.table
-    Z = ZONES_DATA.table
-    TR = TRADE_LIMITS_DATA.table
-    IA = IMPORT_ACCESSES_DATA.table
-    EA = EXPORT_ACCESSES_DATA.table
-
-    C_SINGLE = C_SINGLE[
-        C_SINGLE['converterType'].map(C_T['outputMedium']).map(M['sectorType'])
-        != 1
-    ]
-    STO_SINGLE = STO_SINGLE[
-        STO_SINGLE['storageType'].map(STO_T['medium']).map(M['sectorType'])
-        != 1
-    ]
-    D_SINGLE = D_SINGLE[
-        D_SINGLE['demandType'].map(D_T['medium']).map(M['sectorType'])
-        == 0
-    ]
-    TR = TR[
-        TR['medium'].map(M['sectorType'])
-        == 0
-    ]
-    EA = EA[
-        EA['medium'].map(M['sectorType'])
-        != 1
-    ]
-
-    C_SINGLE_P_AVA = object_profile_matrix(
-        objectTable = C_SINGLE,
-        profileSpec = CONVERTER_AVA_PROFILES_DATA
-    )
-    D_SINGLE_P = object_profile_matrix(
-        objectTable = D_SINGLE,
-        profileSpec = DEMAND_PROFILES_DATA
-    )
-    STO_SINGLE_P_MAX_LEVEL = object_profile_matrix(
-        objectTable = STO_SINGLE,
-        profileSpec = STORAGE_MAX_LEVEL_PROFILES_DATA
-    )
-    STO_SINGLE_P_MIN_LEVEL = object_profile_matrix(
-        objectTable = STO_SINGLE,
-        profileSpec = STORAGE_MIN_LEVEL_PROFILES_DATA
-    )
-    STO_SINGLE_P_NAT_INFLOW = object_profile_matrix(
-        objectTable = STO_SINGLE,
-        profileSpec = STORAGE_NAT_INFLOW_PROFILES_DATA
-    )
-
-
-
-
-
-
-
-
-    # mapping before the grouping
-    C_SINGLE["zone"] = C_SINGLE["node"].map(N["zone"])
-    STO_SINGLE["zone"] = STO_SINGLE["node"].map(N["zone"])
-    D_SINGLE["zone"] = D_SINGLE["node"].map(N["zone"])
-    STO_SINGLE["e2pCharge"] = STO_SINGLE['energyCapacity'] / STO_SINGLE['chargePower']
-    STO_SINGLE["e2pDischarge"] = STO_SINGLE['energyCapacity'] / STO_SINGLE['dischargePower']
-
-    if GROUPING_ENABLED:
-        C_GROUP = (
-            C_SINGLE.assign(
-                profileKey=map_profiles(C_SINGLE, CONVERTER_AVA_PROFILES_DATA),
-                originalIndices=np.arange(len(C_SINGLE)),
-                originalKeys=C_SINGLE.index,
-            )
-            .groupby(
-                ["zone", "converterType", "isInvestment", "profileKey"],
-                as_index=False,
-            )
-            .agg(
-                capacity=("capacity", "sum"),
-                originalIndices=("originalIndices", list),
-                originalKeys=("originalKeys", list),
-            )
-        )
-        STO_GROUP = (
-            STO_SINGLE.assign(
-                minProfileKey=map_profiles(STO_SINGLE, STORAGE_MIN_LEVEL_PROFILES_DATA),
-                maxProfileKey=map_profiles(STO_SINGLE, STORAGE_MAX_LEVEL_PROFILES_DATA),
-                natProfileKey=map_profiles(STO_SINGLE, STORAGE_NAT_INFLOW_PROFILES_DATA),
-                originalIndices=np.arange(len(STO_SINGLE)),
-                originalKeys=STO_SINGLE.index,
-            )
-            .groupby(
-                [
-                    "zone",
-                    "storageType",
-                    "isInvestment",
-                    "e2pCharge",
-                    "e2pDischarge",
-                    "naturalInflow", ###
-                    "minProfileKey",
-                    "maxProfileKey",
-                    "natProfileKey",
-                ],
-                as_index=False,
-            )
-            .agg(
-                energyCapacity=("energyCapacity", "sum"),
-                originalIndices=("originalIndices", list),
-                originalKeys=("originalKeys", list),
-            )
-        )
-        D_GROUP = (
-            D_SINGLE.assign(
-                originalIndices=np.arange(len(D_SINGLE)),
-                originalKeys=D_SINGLE.index,
-            )
-            .groupby(["zone", "demandType"], as_index=False)
-            .agg(
-                totalLoad=("totalLoad", "sum"),
-                originalIndices=("originalIndices", list),
-                originalKeys=("originalKeys", list),
-            )
-        )
-
-        C_GROUP_P_AVA = np.stack([
-            C_SINGLE_P_AVA[indices[0]]
-            for indices in C_GROUP["originalIndices"]
-        ])
-        STO_GROUP_P_MAX_LEVEL = np.stack([
-            STO_SINGLE_P_MAX_LEVEL[indices[0]]
-            for indices in STO_GROUP["originalIndices"]
-        ])
-        STO_GROUP_P_MIN_LEVEL = np.stack([
-            STO_SINGLE_P_MIN_LEVEL[indices[0]]
-            for indices in STO_GROUP["originalIndices"]
-        ])
-        STO_GROUP_P_NAT_INFLOW = np.stack([
-            STO_SINGLE_P_NAT_INFLOW[indices[0]]
-            for indices in STO_GROUP["originalIndices"]
-        ])
-        D_GROUP_P = np.stack([
-            D_SINGLE_P[indices[0]]
-            for indices in D_GROUP["originalIndices"]
-        ])
-
-        C = C_GROUP
-        STO = STO_GROUP
-        D = D_GROUP
-        C_P_AVA = C_GROUP_P_AVA
-        STO_P_MAX_LEVEL = STO_GROUP_P_MAX_LEVEL
-        STO_P_MIN_LEVEL = STO_GROUP_P_MIN_LEVEL
-        STO_P_NAT_INFLOW = STO_GROUP_P_NAT_INFLOW
-        D_P = D_GROUP_P
-    else:
-        C = C_SINGLE
-        STO = STO_SINGLE
-        D = D_SINGLE
-        C_P_AVA = C_SINGLE_P_AVA
-        STO_P_MAX_LEVEL = STO_SINGLE_P_MAX_LEVEL
-        STO_P_MIN_LEVEL = STO_SINGLE_P_MIN_LEVEL
-        STO_P_NAT_INFLOW = STO_SINGLE_P_NAT_INFLOW
-        D_P = D_SINGLE_P
-    #"""
+    C = tables["C"]
+    C_T = tables["C_T"]
+    STO = tables["STO"]
+    STO_T = tables["STO_T"]
+    D = tables["D"]
+    D_T = tables["D_T"]
+    IA = tables["IA"]
+    EA = tables["EA"]
+    TR = tables["TR"]
+    N = tables["N"]
+    Z = tables["Z"]
+    M = tables["M"]
+    L = tables["L"]
+    C_P_AVA = tables["C_P_AVA"]
+    STO_P_MAX_LEVEL = tables["STO_P_MAX_LEVEL"]
+    STO_P_MIN_LEVEL = tables["STO_P_MIN_LEVEL"]
+    STO_P_NAT_INFLOW = tables["STO_P_NAT_INFLOW"]
+    D_P = tables["D_P"]
 
 
 
